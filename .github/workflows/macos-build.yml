@@ -20,8 +20,8 @@ permissions:
 
 jobs:
   checks:
-    # GitHub's macos-15 image is arm64. Nested VMs are not available here.
-    runs-on: macos-15
+    # GitHub's macos-26 image is arm64. Nested VMs are not available here.
+    runs-on: macos-26
     timeout-minutes: 45
     defaults:
       run:
