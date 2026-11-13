@@ -85,6 +85,8 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: ui/package-lock.json
+      - uses: astral-sh/setup-uv@v10.3.3
+        if: inputs.scope == 'package'
       - name: Build and verify an uninstalled development App on macOS 15
         id: package
         if: inputs.scope == 'package'
@@ -96,6 +98,7 @@ jobs:
           trap 'rm -f "$log"' EXIT
           stage=dependencies
           validate_package() {
+            uv --version || return
             brew install glib gettext pcre2 || return
             brew upgrade glib gettext pcre2 || return
             stage=build
@@ -119,29 +122,32 @@ jobs:
           import pathlib, re, sys
           text = pathlib.Path(sys.argv[1]).read_text(errors="replace")
           for category, pattern in {
-              "compiler_error": r"\berror:",
+              "compiler_error": r"\.(swift|go|c|h|m):\d+:\d+: (fatal )?error:",
               "dependency_lock_mismatch": r"(?i)(differs from the reviewed SSHFS dependency lock|(recipe|checksum|sha256|version).{0,100}(mismatch|expected|does not match))",
               "network_timeout": r"(?i)(timed out|timeout)",
               "signature_failure": r"(?i)(invalid signature|code object is not signed|a sealed resource is missing)",
           }.items():
               print(category + "=" + str(bool(re.search(pattern, text))).lower())
+          for tool in sorted(set(re.findall(r"spawnSync (uv|go|node|npm|swiftc) ENOENT", text))):
+              print("missing_tool=" + tool)
           PY
             diagnostics="$RUNNER_TEMP/cage-encrypted-diagnostics"
-            mkdir -p "$diagnostics"
             certificate="$RUNNER_TEMP/cage-diagnostic-public.pem"
-            printf '%s' "$DIAGNOSTIC_CERT_BASE64" | openssl base64 -d -A > "$certificate"
-            if openssl cms -encrypt -binary -aes-256-cbc -outform DER -in "$log" -out "$diagnostics/build-log.cms" "$certificate"; then
+            if mkdir -p "$diagnostics" &&
+              printf '%s' "$DIAGNOSTIC_CERT_BASE64" | openssl base64 -d -A > "$certificate" &&
+              openssl cms -encrypt -binary -aes-256-cbc -outform DER -in "$log" -out "$diagnostics/build-log.cms" "$certificate"; then
               echo 'Encrypted diagnostic log prepared; no plaintext log is published.'
+              echo 'diagnostics_ready=true' >> "$GITHUB_OUTPUT" || true
             else
-              rm -f "$diagnostics/build-log.cms"
+              rm -f "$diagnostics/build-log.cms" || true
               echo 'Diagnostic encryption failed.'
             fi
-            rm -f "$certificate"
+            rm -f "$certificate" || true
             exit "$status"
           fi
           echo 'PASS: macOS 15 ARM64 development App build, deep signature and executable checks'
       - name: Retain only the encrypted failure diagnostic
-        if: failure() && inputs.scope == 'package' && steps.package.outcome == 'failure'
+        if: failure() && steps.package.outputs.diagnostics_ready == 'true'
         uses: actions/upload-artifact@v7.0.2
         with:
           name: encrypted-macos-package-diagnostic
