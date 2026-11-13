@@ -86,9 +86,11 @@ jobs:
           cache: npm
           cache-dependency-path: ui/package-lock.json
       - name: Build and verify an uninstalled development App on macOS 15
+        id: package
         if: inputs.scope == 'package'
         env:
           CAGE_SIGNING_IDENTITY: '-'
+          DIAGNOSTIC_CERT_BASE64: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVFRENDQW5pZ0F3SUJBZ0lVWGxhRzcvdm42RDRmbnkvcjdiU3Z5aTNJS0NZd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0tERW1NQ1FHQTFVRUF3d2RRMkZuWlNCRFNTQmthV0ZuYm05emRHbGpJR1Z1WTNKNWNIUnBiMjR3SGhjTgpNall4TVRFek1ERXdOalF5V2hjTk1qWXhNVEl3TURFd05qUXlXakFvTVNZd0pBWURWUVFEREIxRFlXZGxJRU5KCklHUnBZV2R1YjNOMGFXTWdaVzVqY25sd2RHbHZiakNDQWFJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dHUEFEQ0MKQVlvQ2dnR0JBTXp6UjRqWjFwMzZySGhYVTF2T2FDVUlqTm8wSUhteEIydEQrUnlVUkRnWHc4K3BsVDV2RFo3egp1aGRjZDRlazhQV0gvU2J2OFViU1BjQlVWZ0ZTYStkY25NWXljckpsc0Q2WUFsWGVHd2w5Z2t0aG5WR1hoK0xCCmZ2cG9LWG54djNoRjViY3RucGFSZ2NYZ0xleituaWdiTWlGNEhCdUlZY3VUSkdWdzZGWGdUNGtsbnZTcHI0K2YKM1E3V2Rrc2Y3U3plbTB2eUluOFVmT3k5MzlWWWNkYjdwNlZiRXdyLzRuN3hRVU5QNWVQSzB0VTRsTTE2cERtVgpEWm1ubDdlMmhZM0V0N3M2VDczaUYwTjU2OWxkTUJBOHNYY3JBT3YyWG5oSjA3Z2czNFNMcUoxUFIybTNWVFN4CjFHWVJ0bUZFL2tCQndqTzEyZUJBdnhCU2I0Y2JVbmFrQWl3Yy96MFkyWXdwM2FHbmh6VS9kNmE3ekIzalBoeUIKbmtmNkdIQ0FGcmJTaTFNY1A2Q0JFTlh2RzlHMlVmRVlOSjB3YVF0bm12QUxrb0VTMnI3bzBZVlRDYUwyN2Zibgo3ci96SEdNNnFlTTBvdHdVMjRlMzU2V0F1dERmNmFPZkpXaUhUNDhQMFNIVFlrbkhWdXV1T3l2Nll4RjNZUy8xCnQrYjl0UzhhS1FJREFRQUJvekl3TURBZEJnTlZIUTRFRmdRVXBYeUgzQUF6UmFWQUJuMHV5S0tYWnFTbHk0MHcKRHdZRFZSMFRBUUgvQkFVd0F3RUIvekFOQmdrcWhraUc5dzBCQVFzRkFBT0NBWUVBU0xJL2doRWlXMm1yVGFNdAoyeWVhMk00c0U5UkdueWxmVlJHK0plMThDY25JaE85K0FvdU52bXFheEUyUllDeWRGcWUwaW5VZlJ6SEp6WVJNCjNFa1lkVkZoVXdHNDAyZERzSnJmcUJVcHF5aEh4RW82WmJFOHZ2TDQzdXlGZ0ljNlhwVmNUbXpYYms2SlBSU08KZFdIc1h5R2lQWWx1dGUveVNHb1FPeDhXdHd0emw3cFdCei9hY1UzcXBubWJEWTZDR2lTM0JsZU9qb1BDWm4vbwpEU0I2RFQrTVF6TE1sZmV6Qy9CMFcxeUhGeUs2MDgva2JHZE13dVp0NlRSVzlLUGRYV0xkR2VuNmpSTkhjQWFxCjZjd3FLODc4amt1SWFQYUxBRk9aWTJBbDZmOWFaRndkR25vSFQxajZZYVhRclpxNFFzUkNRa3lDbWNOTlc2QjEKQVp1K1JiQUJnVmtDUzR3eHNDYk95eWVoTjQxblRvdDZLT05ZemtmQ1VTelU0MUIzcFlxejMrOGxtdElJcEtRbwo0N1hiR29iREpkcUJHYzZKanV1bEFHL3EwV21lcVBTSDA0dXA0dW9xUU0veHU4ZkRMcTBQYVU5K2ZHSlRSWkVzCjV1WVd4OVpNREpwbnBUQ0tJblVmYVM3MWNVS0ZjL0IwNGhkMEJDRk95dVRUMXpYYgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=='
         run: |
           log="$RUNNER_TEMP/cage-package.log"
           trap 'rm -f "$log"' EXIT
@@ -124,9 +126,28 @@ jobs:
           }.items():
               print(category + "=" + str(bool(re.search(pattern, text))).lower())
           PY
+            diagnostics="$RUNNER_TEMP/cage-encrypted-diagnostics"
+            mkdir -p "$diagnostics"
+            certificate="$RUNNER_TEMP/cage-diagnostic-public.pem"
+            printf '%s' "$DIAGNOSTIC_CERT_BASE64" | openssl base64 -d -A > "$certificate"
+            if openssl cms -encrypt -binary -aes-256-cbc -outform DER -in "$log" -out "$diagnostics/build-log.cms" "$certificate"; then
+              echo 'Encrypted diagnostic log prepared; no plaintext log is published.'
+            else
+              rm -f "$diagnostics/build-log.cms"
+              echo 'Diagnostic encryption failed.'
+            fi
+            rm -f "$certificate"
             exit "$status"
           fi
           echo 'PASS: macOS 15 ARM64 development App build, deep signature and executable checks'
+      - name: Retain only the encrypted failure diagnostic
+        if: failure() && inputs.scope == 'package' && steps.package.outcome == 'failure'
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: encrypted-macos-package-diagnostic
+          path: ${{ runner.temp }}/cage-encrypted-diagnostics/build-log.cms
+          if-no-files-found: error
+          retention-days: 1
       - name: Record the exact limited validation scope
         if: success()
         env:
