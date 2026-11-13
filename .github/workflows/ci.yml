@@ -92,6 +92,7 @@ jobs:
         if: inputs.scope == 'package'
         env:
           CAGE_SIGNING_IDENTITY: '-'
+          GOTOOLCHAIN: auto
           DIAGNOSTIC_CERT_BASE64: 'LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUVFRENDQW5pZ0F3SUJBZ0lVWGxhRzcvdm42RDRmbnkvcjdiU3Z5aTNJS0NZd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0tERW1NQ1FHQTFVRUF3d2RRMkZuWlNCRFNTQmthV0ZuYm05emRHbGpJR1Z1WTNKNWNIUnBiMjR3SGhjTgpNall4TVRFek1ERXdOalF5V2hjTk1qWXhNVEl3TURFd05qUXlXakFvTVNZd0pBWURWUVFEREIxRFlXZGxJRU5KCklHUnBZV2R1YjNOMGFXTWdaVzVqY25sd2RHbHZiakNDQWFJd0RRWUpLb1pJaHZjTkFRRUJCUUFEZ2dHUEFEQ0MKQVlvQ2dnR0JBTXp6UjRqWjFwMzZySGhYVTF2T2FDVUlqTm8wSUhteEIydEQrUnlVUkRnWHc4K3BsVDV2RFo3egp1aGRjZDRlazhQV0gvU2J2OFViU1BjQlVWZ0ZTYStkY25NWXljckpsc0Q2WUFsWGVHd2w5Z2t0aG5WR1hoK0xCCmZ2cG9LWG54djNoRjViY3RucGFSZ2NYZ0xleituaWdiTWlGNEhCdUlZY3VUSkdWdzZGWGdUNGtsbnZTcHI0K2YKM1E3V2Rrc2Y3U3plbTB2eUluOFVmT3k5MzlWWWNkYjdwNlZiRXdyLzRuN3hRVU5QNWVQSzB0VTRsTTE2cERtVgpEWm1ubDdlMmhZM0V0N3M2VDczaUYwTjU2OWxkTUJBOHNYY3JBT3YyWG5oSjA3Z2czNFNMcUoxUFIybTNWVFN4CjFHWVJ0bUZFL2tCQndqTzEyZUJBdnhCU2I0Y2JVbmFrQWl3Yy96MFkyWXdwM2FHbmh6VS9kNmE3ekIzalBoeUIKbmtmNkdIQ0FGcmJTaTFNY1A2Q0JFTlh2RzlHMlVmRVlOSjB3YVF0bm12QUxrb0VTMnI3bzBZVlRDYUwyN2Zibgo3ci96SEdNNnFlTTBvdHdVMjRlMzU2V0F1dERmNmFPZkpXaUhUNDhQMFNIVFlrbkhWdXV1T3l2Nll4RjNZUy8xCnQrYjl0UzhhS1FJREFRQUJvekl3TURBZEJnTlZIUTRFRmdRVXBYeUgzQUF6UmFWQUJuMHV5S0tYWnFTbHk0MHcKRHdZRFZSMFRBUUgvQkFVd0F3RUIvekFOQmdrcWhraUc5dzBCQVFzRkFBT0NBWUVBU0xJL2doRWlXMm1yVGFNdAoyeWVhMk00c0U5UkdueWxmVlJHK0plMThDY25JaE85K0FvdU52bXFheEUyUllDeWRGcWUwaW5VZlJ6SEp6WVJNCjNFa1lkVkZoVXdHNDAyZERzSnJmcUJVcHF5aEh4RW82WmJFOHZ2TDQzdXlGZ0ljNlhwVmNUbXpYYms2SlBSU08KZFdIc1h5R2lQWWx1dGUveVNHb1FPeDhXdHd0emw3cFdCei9hY1UzcXBubWJEWTZDR2lTM0JsZU9qb1BDWm4vbwpEU0I2RFQrTVF6TE1sZmV6Qy9CMFcxeUhGeUs2MDgva2JHZE13dVp0NlRSVzlLUGRYV0xkR2VuNmpSTkhjQWFxCjZjd3FLODc4amt1SWFQYUxBRk9aWTJBbDZmOWFaRndkR25vSFQxajZZYVhRclpxNFFzUkNRa3lDbWNOTlc2QjEKQVp1K1JiQUJnVmtDUzR3eHNDYk95eWVoTjQxblRvdDZLT05ZemtmQ1VTelU0MUIzcFlxejMrOGxtdElJcEtRbwo0N1hiR29iREpkcUJHYzZKanV1bEFHL3EwV21lcVBTSDA0dXA0dW9xUU0veHU4ZkRMcTBQYVU5K2ZHSlRSWkVzCjV1WVd4OVpNREpwbnBUQ0tJblVmYVM3MWNVS0ZjL0IwNGhkMEJDRk95dVRUMXpYYgotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=='
         run: |
           log="$RUNNER_TEMP/cage-package.log"
@@ -99,6 +100,8 @@ jobs:
           stage=dependencies
           validate_package() {
             uv --version || return
+            go version || return
+            (cd tools/tailnet && go version) || return
             brew install glib gettext pcre2 || return
             brew upgrade glib gettext pcre2 || return
             stage=build
@@ -125,6 +128,7 @@ jobs:
               "compiler_error": r"\.(swift|go|c|h|m):\d+:\d+: (fatal )?error:",
               "dependency_lock_mismatch": r"(?i)(differs from the reviewed SSHFS dependency lock|(recipe|checksum|sha256|version).{0,100}(mismatch|expected|does not match))",
               "network_timeout": r"(?i)(timed out|timeout)",
+              "go_toolchain_mismatch": r"go.mod requires go >=",
               "signature_failure": r"(?i)(invalid signature|code object is not signed|a sealed resource is missing)",
           }.items():
               print(category + "=" + str(bool(re.search(pattern, text))).lower())
